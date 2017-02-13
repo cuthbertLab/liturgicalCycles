@@ -1,0 +1,359 @@
+<html>
+<head>
+    <style>
+    BODY {
+        background-color: 'black'
+    }
+    </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.5.1/snap.svg-min.js"></script>
+<script>
+lc = null;
+function runIt() {
+    lc = new LiturgicalCycle('#mainCycle');
+}
+
+
+class PieChart {
+    // adapted for ES6 from https://github.com/artemdemo/pie-chart-snapsvg
+    constructor(dataArray) {
+        this.xCenter = 300;
+        this.yCenter = 300;
+        this.outerRadius = 200;
+        this.innerRadius = 120;
+        this.makeDonut = true;
+
+        this.data = dataArray;
+        this.totalDataAmount = undefined;
+        this.getAngleData();
+        this.updatePositionData();
+        this.sectors = [];
+        this.innerDonut = undefined;
+    }
+
+    /**
+      * Converts a list of [{amount, title, color}] objects into
+      * a richer list that knows its angle informati
+      */
+    getAngleData() {
+        const d = this.data;
+        const ad = [];
+        let totalAmount = 0;
+        for (const o of d) {
+            totalAmount += o.amount;
+        }
+        for (const o of d) {
+            const newO = Object.assign({
+                angle: 360 * o.amount/totalAmount
+            }, o);
+            ad.push(newO);
+        }
+        this.angleData = ad;
+        this.totalDataAmount = totalAmount;
+        return ad;
+    }
+
+    /**
+      * Call whenever the shape of the piechart changes.
+      * Gets x and y data from the angle data
+      */
+    updatePositionData() {
+        const ad = this.angleData;
+        const pd = [];
+        let currentStartAngle = -90;
+        let currentEndAngle = -90;
+        // use Snap.sin, etc. which works on angles
+        const totalSlices = ad.length;
+
+        const xC = this.xCenter;
+        const yC = this.yCenter;
+        const r = this.outerRadius;
+
+        let firstX1 = 0;
+        let firstY1 = 0;
+
+        for (let i = 0; i < totalSlices; i++) {
+            const thisAd = ad[i];
+            currentEndAngle = currentStartAngle + thisAd.angle;
+
+            let x1 = Math.round(xC + r * Snap.cos(currentStartAngle));
+            let x2 = Math.round(xC + r * Snap.cos(currentEndAngle));
+
+            let y1 = Math.round(yC + r * Snap.sin(currentStartAngle));
+            let y2 = Math.round(yC + r * Snap.sin(currentEndAngle));
+
+            // these correct for rounding to make sure that
+            // the first and last sections intersect.
+
+            if (i == 0) {
+                firstX1 = x1;
+                firstY1 = y1;
+            } else if (i + 1 == totalSlices) {
+                x2 = firstX1;
+                y2 = firstY1;
+            }
+
+            const negAngle = currentStartAngle + thisAd.angle / 2;
+            const nx = Math.round(xC + r * Snap.cos(negAngle));
+            const ny = Math.round(yC + r * Snap.sin(negAngle));
+            const bigAdjust = `  A${r},${r} 0 0,1 ${nx},${ny}`;
+            const pathStr = `M${xC},${yC}  L${x1},${y1} ${bigAdjust}  A${r},${r} 0 0,1 ${x2},${y2} z`;
+            const newData = Object.assign({'x1': x1, 'y1': y1,
+                                           'x2': x2, 'y2': y2,
+                                           'pathStr': pathStr,
+                                       }, thisAd);
+            pd.push(newData)
+            currentStartAngle = currentEndAngle;
+        }
+        this.positionData = pd;
+        return pd;
+    }
+
+    drawSvg(s) {
+        const sectors = [];
+        for (const o of this.positionData) {
+            const sector = s.path(o.pathStr);
+            sector.attr('fill', o.color);
+            sectors.push(sector);
+            o.sector = sector;
+        }
+
+        if (this.makeDonut) {
+            this.innerDonut = s.circle(this.xCenter, this.yCenter, this.innerRadius);
+            this.innerDonut.attr('fill', '#fff'); // should be clip;
+        }
+
+        this.sectors = sectors;
+        return this.positionData;
+    }
+
+    clearSvg(s) {
+        for (const sector of this.sectors) {
+            sector.remove();
+        }
+        if (this.innerDonut !== undefined) {
+            this.innerDonut.remove();
+            this.innerDonut = undefined;
+        }
+        this.sectors = [];
+    }
+
+}
+
+sampleData = [
+        {amount: 20, title: 'hi', color: 'red'},
+        {amount: 40, title: 'bye', color: 'blue'},
+        {amount: 10, title: 'howdy', color: 'yellow'},
+        {amount: 5, title: 'heya', color: 'green'},
+];
+
+class LiturgicalCycle {
+    constructor(where) {
+        this.s = Snap(where);
+        this.titleText = this.createText(100, 20, 'Liturgical Year');
+        this.defaultFill = {
+            stroke: '#ff00ff',
+            strokeWidth: 20,
+            fill: 'goldenrod',
+            opacity: 0.2
+        };
+        // const r = this.s.rect(100, 100, 100, 100, 20, 20).attr(this.defaultFill);
+        // r.click( () => {
+        //     this.removedText.remove();
+        //     this.createText(100, 20, 'this is the Text!');
+        //     const top = 50;
+        //     const left = 60;
+        //     const radius = 20;
+        //     const c = this.s.circle(top, left, radius);
+        //     c.attr(this.defaultFill);
+        //     r.attr('opacity', 0.4);
+        // });
+        // this.r = r;
+
+        this.lentColor = '#34495e'; // material ui, Wetasphalt
+        this.celebrationColor = '#27ae60'; // material ui, Nephritis
+        this.normalColor = '#2980b9';
+
+        this.cycleYear = [
+            {amount: 22, title: 'Advent', color: this.lentColor},
+            {amount: 12, title: 'Christmastide', color: this.celebrationColor, left: 'Christmas Day'},
+            {amount: 54, title: 'after Epiphany', color: this.normalColor, left: 'Epiphany'},
+            {amount: 40, title: 'Lent', color: this.lentColor, left: 'Ash Wednesday'},
+            {amount: 49, title: 'Eastertide', color: this.celebrationColor, left: 'Easter'},
+            {amount: 188, title: 'after Pentecost', color: this.normalColor, left: 'Pentacost'},
+        ];
+        this.ordinaryI = this.cycleYear[2];
+        this.ordinaryII = this.cycleYear[5];
+        this.totalOrdinaryLength = 54 + 188;
+        this.positionData = undefined;
+        this.saintDayPositions = [];
+        this.saints = undefined;
+
+        this.drawPieChart();
+        this.easterPosition = this.positionData[4];
+        this.dragOrdinaryIAmount = undefined;
+
+    }
+    createText(x, y, text) {
+        const fontSize = 40;
+        const t = this.s.text(x, y + fontSize, text);
+        t.attr('font-size', fontSize);
+        t.attr('font-family', 'Gill Sans, Helvetica');
+        t.attr('font-weight', '300');
+        t.attr('text-rendering', 'optimizeLegibility');
+        return t;
+    }
+    drawPieChart() {
+        this.pieChart = new PieChart(this.cycleYear)
+        const positionData = this.pieChart.drawSvg(this.s);
+        this.positionData = positionData;
+
+        const lc = this;
+        for (const pd of positionData) {
+            const sec = pd.sector;
+            sec.click( () => this.sectorClick(pd) );
+            sec.hover( () => this.sectorClick(pd),
+                       () => this.setTitle('Liturgical Year')
+                      );
+            if (pd.left !== undefined) {
+                const c = this.s.circle(pd.x1, pd.y1, 10).attr({
+                    'stroke': 'black',
+                    'strokeWidth': '2px',
+                    'fill': 'gray',
+                }).hover( () => this.setTitle(pd.left) );
+                if (pd.left == 'Easter') {
+                    c.attr('fill', 'red');
+                    c.drag( (dx, dy) => this.easterDrag(dx, dy),
+                            undefined,
+                            () => this.endEasterDrag()
+                    );
+                }
+                pd.point = c;
+            }
+        }
+        this.addProperSaints();
+        return positionData;
+    }
+
+    getSaintsDaysPositions() {
+        // should be only called once, so that
+        // these are random but fixed.
+        for (let i = 0; i < 20; i++) {
+            const iDeg = parseInt(Math.random() * 360);
+            this.saintDayPositions.push(iDeg);
+        }
+        return this.saintDayPositions;
+    }
+
+    addProperSaints() {
+        const pc = this.pieChart
+        const saintDistance = pc.innerRadius + (pc.outerRadius - pc.innerRadius) / 2;
+        const c = this.s.circle(pc.xCenter, pc.yCenter, saintDistance);
+        c.attr({
+            stroke: '#ffffdd',
+            strokeWidth: 20,
+            fill: 'rgba(0,0,0,0)',
+            filter: this.s.filter(Snap.filter.shadow(0, 2, 3))
+        });
+
+        const saintDays = [];
+
+        if (this.saintDayPositions.length == 0) {
+            this.getSaintsDaysPositions()
+        }
+
+        for (let i = 0; i < this.saintDayPositions.length; i++) {
+            const iDeg = this.saintDayPositions[i];
+            const iX = Math.round(pc.xCenter + saintDistance * Snap.cos(iDeg));
+            const iY = Math.round(pc.xCenter + saintDistance * Snap.sin(iDeg));
+
+            const sc = this.s.circle(iX, iY, 3);
+            saintDays.push(sc);
+        }
+
+        this.saints = this.s.group(c, ...saintDays);
+        return this.saints;
+    }
+
+    easterDrag(dx, dy) {
+        const easterX = this.easterPosition.x1 + dx - this.pieChart.xCenter;
+        const easterY = -1 * (this.easterPosition.y1 + dy - this.pieChart.yCenter);
+        const arcT = Snap.deg(Math.atan2(easterY, easterX));
+            // bug in Snap.atan2!
+        const easterXOld = this.easterPosition.x1 - this.pieChart.xCenter;
+        const easterYOld = -1 * (this.easterPosition.y1 - this.pieChart.yCenter);
+        const arcTOld = Snap.deg(Math.atan2(easterYOld, easterXOld));
+            // bug in Snap.atan2!
+        const angleDifference = arcTOld - arcT;
+        const dayPerAngle = 365/360;
+        const dayChange = angleDifference * dayPerAngle;
+        const storedOrdinaryIAmount = this.ordinaryI.amount;
+        const storedOrdinaryIIAmount = this.ordinaryII.amount;
+
+        let tempOrdinaryI = Math.round(storedOrdinaryIAmount + dayChange);
+        if (tempOrdinaryI < 35) { // March 22
+            tempOrdinaryI = 35;
+        } else if (tempOrdinaryI > 69) { // April 25
+            tempOrdinaryI = 69;
+        }
+
+        this.changeOrdinary(tempOrdinaryI);
+        this.dragOrdinaryIAmount = tempOrdinaryI;
+
+        this.ordinaryI.amount = storedOrdinaryIAmount;
+        this.ordinaryII.amount = storedOrdinaryIIAmount;
+
+    }
+
+    endEasterDrag() {
+        this.changeOrdinary(this.dragOrdinaryIAmount);
+    }
+
+    clearPieChart() {
+        if (this.pieChart !== undefined) {
+            this.pieChart.clearSvg();
+        }
+        for (const pd of this.positionData) {
+            if (pd.point !== undefined) {
+                pd.point.remove();
+            }
+        }
+        if (this.saints !== undefined) {
+            this.saints.remove();
+            this.saints = undefined;
+        }
+    }
+
+    setTitle(txt) {
+        this.titleText.attr('text', txt);
+    }
+    sectorClick(pd) {
+        this.setTitle(pd.title);
+    }
+
+    animateChangeOrdinary(newOrdinaryI) {
+        Snap.animate(
+            this.ordinaryI.amount,
+            newOrdinaryI,
+            (v) => this.changeOrdinary(v),
+            100 + 20 * Math.abs(this.ordinaryI.amount, newOrdinaryI)
+        );
+    }
+
+    changeOrdinary(newOrdinaryI) {
+        this.ordinaryI.amount = newOrdinaryI
+        this.ordinaryII.amount = this.totalOrdinaryLength - newOrdinaryI;
+        this.clearPieChart();
+        this.drawPieChart();
+    }
+
+
+}
+
+
+</script>
+
+</head>
+<body onLoad='runIt()'>
+  <svg version="1.1" id="mainCycle" height="100%" width="100%"></svg>
+</body>
+</html>
