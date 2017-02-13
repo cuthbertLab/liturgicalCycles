@@ -1,10 +1,26 @@
 <html>
 <head>
+    <title>The Liturgical Year</title>
     <style>
     BODY {
-        background-color: 'black'
+        font-family: 'Gill Sans', helvetica;
+    }
+
+    P.copyright {
+        font-size: 75%
     }
     </style>
+<script>
+try {
+    e = () => 5
+    if (e() !== 5) {
+        throw "ugh";
+    }
+} catch (e) {
+    alert('Unfortunately, this page requires a newer browser than you have...')
+}
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.5.1/snap.svg-min.js"></script>
 <script>
 lc = null;
@@ -149,7 +165,7 @@ sampleData = [
 class LiturgicalCycle {
     constructor(where) {
         this.s = Snap(where);
-        this.titleText = this.createText(100, 20, 'Liturgical Year');
+        this.titleText = this.createText(300, 20, 'Liturgical Year').attr('text-anchor', 'middle');
         this.defaultFill = {
             stroke: '#ff00ff',
             strokeWidth: 20,
@@ -179,7 +195,7 @@ class LiturgicalCycle {
             {amount: 54, title: 'after Epiphany', color: this.normalColor, left: 'Epiphany'},
             {amount: 40, title: 'Lent', color: this.lentColor, left: 'Ash Wednesday'},
             {amount: 49, title: 'Eastertide', color: this.celebrationColor, left: 'Easter'},
-            {amount: 188, title: 'after Pentecost', color: this.normalColor, left: 'Pentacost'},
+            {amount: 188, title: 'after Pentecost', color: this.normalColor, left: 'Pentecost'},
         ];
         this.ordinaryI = this.cycleYear[2];
         this.ordinaryII = this.cycleYear[5];
@@ -244,6 +260,9 @@ class LiturgicalCycle {
         return this.saintDayPositions;
     }
 
+    //
+    // Adds the proper of the saints as a ring.
+    //
     addProperSaints() {
         const pc = this.pieChart
         const saintDistance = pc.innerRadius + (pc.outerRadius - pc.innerRadius) / 2;
@@ -254,6 +273,9 @@ class LiturgicalCycle {
             fill: 'rgba(0,0,0,0)',
             filter: this.s.filter(Snap.filter.shadow(0, 2, 3))
         });
+        c.hover(  () => this.setTitle('Proper of the Saints'),
+                  () => this.setTitle('Liturgical Year')
+              );
 
         const saintDays = [];
 
@@ -267,6 +289,9 @@ class LiturgicalCycle {
             const iY = Math.round(pc.xCenter + saintDistance * Snap.sin(iDeg));
 
             const sc = this.s.circle(iX, iY, 3);
+            sc.hover( () => this.setTitle("A hypothetical Saint's Day"),
+                      () => this.setTitle('Liturgical Year')
+                   );
             saintDays.push(sc);
         }
 
@@ -354,6 +379,18 @@ class LiturgicalCycle {
 
 </head>
 <body onLoad='runIt()'>
-  <svg version="1.1" id="mainCycle" height="100%" width="100%"></svg>
+  <div style='text-align: center'>
+      <svg version="1.1" id="mainCycle" height="600" width="600"></svg>
+      <br />
+
+      <p>
+          A representation of the relationship between the mobile Proper of the Time
+             (drag the red dot for Easter) and the fixed Proper of the Saints.
+      </p>
+      <p class="copyright">
+          Copyright &copy; 2017, <a href="http://www.trecento.com/">Michael Scott Cuthbert</a>. Very few rights reserved.
+          Use it however you'd like.  <a href="https://github.com/cuthbertLab/liturgicalCycles">Source Code</a>.
+      </p>
+  </div>
 </body>
 </html>
