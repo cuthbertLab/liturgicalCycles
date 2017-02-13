@@ -266,13 +266,27 @@ class LiturgicalCycle {
     addProperSaints() {
         const pc = this.pieChart
         const saintDistance = pc.innerRadius + (pc.outerRadius - pc.innerRadius) / 2;
-        const c = this.s.circle(pc.xCenter, pc.yCenter, saintDistance);
+        //const c = this.s.circle(pc.xCenter, pc.yCenter, saintDistance);
+        // c.attr({
+        //     stroke: '#ffffdd',
+        //     strokeWidth: 20,
+        //     fill: 'rgba(0,0,0,0)',
+        //     filter: this.s.filter(Snap.filter.shadow(0, 2, 3))
+        // });
+
+        const xC = pc.xCenter;
+        const yC = pc.yCenter;
+        const saintWidth = 20;
+        const saintIn = saintDistance - saintWidth/2;
+        const saintOut = saintDistance + saintWidth/2;
+        const c = this.s.path(`M ${xC}, ${yC} m 0, -${saintOut} ` +
+            `a ${saintOut}, ${saintOut}, 0, 1, 0, 1, 0 Z ` +
+            `m 0 ${saintWidth} a ${saintIn}, ${saintIn}, 0, 1, 1, -1, 0 Z`)
         c.attr({
-            stroke: '#ffffdd',
-            strokeWidth: 20,
-            fill: 'rgba(0,0,0,0)',
+            fill: '#ffffdd',
             filter: this.s.filter(Snap.filter.shadow(0, 2, 3))
         });
+
         c.hover(  () => this.setTitle('Proper of the Saints'),
                   () => this.setTitle('Liturgical Year')
               );
